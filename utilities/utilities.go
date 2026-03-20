@@ -1,12 +1,14 @@
 package utilities
 
 import (
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -102,4 +104,57 @@ func GenarateToken(username string, email string, tokenType string) (string, err
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
 	return token.SignedString([]byte("your_secret_key"))
 
+}
+
+func ValidateToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte("your_secret_key"), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	payload, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return false, nil
+	}
+
+	if payload["type"] != "access" {
+		return false, errors.New("invalid token type")
+	}
+
+	return token.Valid, nil
+}
+
+func IsAdminToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte("your_secret_key"), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	payload, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return false, nil
+	}
+
+	isAdmin, ok := payload["is_admin"].(bool)
+	if !ok {
+		return false, nil
+	}
+
+	return isAdmin, nil
+}
+
+func IsAdminEndpoint(path string) bool {
+	return strings.HasPrefix(path, "/admin")
 }

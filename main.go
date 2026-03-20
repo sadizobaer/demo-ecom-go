@@ -2,6 +2,7 @@ package main
 
 import (
 	"ecommerce/db"
+	"ecommerce/middlewares"
 	"ecommerce/routes"
 	"log"
 	"net/http"
@@ -19,6 +20,7 @@ func main() {
 
 	routes.AllPaths(handler, conn)
 
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	authMiddleware := middlewares.AuthMiddleware(handler, conn)
 
+	log.Fatal(http.ListenAndServe(":8080", authMiddleware))
 }
