@@ -55,12 +55,8 @@ func CreateCategory(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) 
 
 	var newCategory Category
 	newCategory.Name = r.FormValue("name")
-	if newCategory.Name == "" {
-		http.Error(w, "Category name is required", http.StatusBadRequest)
-		return
-	}
-
 	uploadedFile, header, err := r.FormFile("image")
+
 	var fileUrlPath string
 	if err == nil {
 		defer uploadedFile.Close()
