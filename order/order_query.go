@@ -23,11 +23,27 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 `
 
+const CreateOrderItemsQuery = `
+CREATE TABLE IF NOT EXISTS order_items (
+item_id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(order_id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    UNIQUE(order_id, product_id)
+);
+`
+
 const CreateOrderQuery = `
 INSERT INTO orders (user_id, cart_id, total_amount)
 VALUES ($1, $2, $3)
 RETURNING order_id;
 `
+
+const GetOrderItemsByOrderId = `
+        SELECT p.product_id, p.name, p.description, p.price, p.image_url, oi.quantity
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE oi.order_id = $1;`
 
 const GetCartItemsByUserIDQuery = `
 SELECT 
@@ -59,6 +75,15 @@ FROM orders
 WHERE user_id = $1;
 `
 
+const CopyItemsQuery = `
+        INSERT INTO order_items (order_id, product_id, quantity)
+        SELECT $1, product_id, quantity 
+        FROM cart_items 
+        WHERE cart_id = $2;
+    `
+
+const DeleteCartItemsQuery = `DELETE FROM cart_items WHERE cart_id = $1;`
+
 func RunOrderTableCreationQuery(conn *pgxpool.Pool) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -68,6 +93,11 @@ func RunOrderTableCreationQuery(conn *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
+
+	if _, err := conn.Exec(ctx, CreateOrderItemsQuery); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -124,12 +154,51 @@ func CreateOrderInDB(conn *pgxpool.Pool, userID int, cartID int) (int, error) {
 		return 0, error
 	}
 
+	_, err = conn.Exec(ctx, CopyItemsQuery, orderID, cartID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to copy items to order_items: %v", err)
+	}
+
 	_, err = conn.Exec(ctx, UpdateCartToOrderedQuery, cartID)
 	if err != nil {
 		return 0, err
 	}
 
+	_, err = conn.Exec(ctx, DeleteCartItemsQuery, cartID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to remove cart: %v", err)
+	}
+
 	return orderID, nil
+}
+
+func GetOrderItemsByOrderID(conn *pgxpool.Pool, orderID int) ([]cart.CartItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rows, err := conn.Query(ctx, GetOrderItemsByOrderId, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []cart.CartItem
+	for rows.Next() {
+		var item cart.CartItem
+		err := rows.Scan(
+			&item.Product.ID,
+			&item.Product.Name,
+			&item.Product.Description,
+			&item.Product.Price,
+			&item.Product.ImageURL,
+			&item.Quantity,
+		)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func GetOrdersByUserIDFromDB(conn *pgxpool.Pool, userID int) ([]OrderItemView, error) {
@@ -165,9 +234,10 @@ func GetOrdersByUserIDFromDB(conn *pgxpool.Pool, userID int) ([]OrderItemView, e
 		// 2. Fetch the products for THIS specific cart/order
 		// We reuse your GetCartItemsByUserID function but modify it slightly
 		// to accept a CartID instead of a UserID if possible.
-		items, err := GetCartItemsByUserID(conn, cartID)
+		// CORRECT: Fetch from order_items using order.ID
+		items, err := GetOrderItemsByOrderID(conn, order.ID)
 		if err != nil {
-			return nil, fmt.Errorf("fetch items error for cart %d: %v", cartID, err)
+			return nil, err
 		}
 
 		order.Products = items
