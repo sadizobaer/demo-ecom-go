@@ -32,7 +32,7 @@ const UserTableCreationQuery = `CREATE TABLE IF NOT EXISTS users (
 const CreateUserQuery = `INSERT INTO users (username, email, password) 
 VALUES ($1, $2, $3);`
 
-const GetUserByEmailQuery = `SELECT user_id, username, email, password FROM users WHERE email = $1;`
+const GetUserByEmailQuery = `SELECT user_id, username, email, password, is_admin FROM users WHERE email = $1;`
 
 const StoreTokenQuery = `INSERT INTO tokens (user_id, token, refresh_token) VALUES ($1, $2, $3);`
 
@@ -70,7 +70,7 @@ func GetUserByEmail(conn *pgxpool.Pool, email string) (*User, error) {
 	row := conn.QueryRow(context.Background(), GetUserByEmailQuery, email)
 
 	var user User
-	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password)
+	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.IsAdmin)
 	if err != nil {
 		return nil, err
 	}

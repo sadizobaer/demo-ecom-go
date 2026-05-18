@@ -94,7 +94,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 		return
 	}
 
-	authToken, refreshToken, err := utilities.GenerateTokens(userFromDB.Username, userFromDB.Email)
+	authToken, refreshToken, err := utilities.GenerateTokens(userFromDB.Username, userFromDB.Email, userFromDB.IsAdmin)
 
 	if err != nil {
 		http.Error(w, "Error generating tokens", http.StatusInternalServerError)
@@ -109,6 +109,13 @@ func LoginUser(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "Login successful", "token": authToken, "refresh": refreshToken}
+	response := map[string]interface{}{
+		"message":  "Login successful",
+		"token":    authToken,
+		"refresh":  refreshToken,
+		"is_admin": userFromDB.IsAdmin,
+		"username": userFromDB.Username,
+		"email":    userFromDB.Email,
+	}
 	json.NewEncoder(w).Encode(response)
 }

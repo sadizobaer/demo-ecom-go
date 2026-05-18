@@ -72,14 +72,14 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, subPath
 	return filePath, nil
 }
 
-func GenerateTokens(username string, email string) (string, string, error) {
+func GenerateTokens(username string, email string, isAdmin bool) (string, string, error) {
 
-	accessToken, err := GenarateToken(username, email, "access")
+	accessToken, err := GenarateToken(username, email, "access", isAdmin)
 	if err != nil {
 		return "", "", err
 	}
 
-	refreshToken, err := GenarateToken(username, email, "refresh")
+	refreshToken, err := GenarateToken(username, email, "refresh", isAdmin)
 	if err != nil {
 		return "", "", err
 	}
@@ -88,12 +88,13 @@ func GenerateTokens(username string, email string) (string, string, error) {
 
 }
 
-func GenarateToken(username string, email string, tokenType string) (string, error) {
+func GenarateToken(username string, email string, tokenType string, isAdmin bool) (string, error) {
 
 	payload := jwt.MapClaims{
 		"username": username,
 		"email":    email,
 		"type":     tokenType,
+		"is_admin": isAdmin,
 		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	}
 
