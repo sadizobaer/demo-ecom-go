@@ -79,7 +79,7 @@ func AddProductToCart(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool
 func UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 	defer r.Body.Close()
 
-	isValidMethod := utilities.IsMethodValid(r.Method, []string{"PUT"})
+	isValidMethod := utilities.IsMethodValid(r.Method, []string{"PUT", "POST"})
 	if !isValidMethod {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
@@ -121,7 +121,7 @@ func UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request, conn *pgxpoo
 func RemoveProductFromCart(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 	defer r.Body.Close()
 
-	isValidMethod := utilities.IsMethodValid(r.Method, []string{"DELETE"})
+	isValidMethod := utilities.IsMethodValid(r.Method, []string{"DELETE", "POST"})
 	if !isValidMethod {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return

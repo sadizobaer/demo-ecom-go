@@ -26,9 +26,13 @@ func GetFavoriteProducts(w http.ResponseWriter, r *http.Request, conn *pgxpool.P
 		return
 	}
 
-	userId := r.FormValue("user_id")
+	// Accept user_id from query string (?user_id=X) or form body
+	userId := r.URL.Query().Get("user_id")
+	if userId == "" {
+		userId = r.FormValue("user_id")
+	}
 	userIdInt, err := strconv.Atoi(userId)
-	if err != nil {
+	if err != nil || userIdInt == 0 {
 		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
 		return
 	}
@@ -95,7 +99,7 @@ func AddProductToFavorite(w http.ResponseWriter, r *http.Request, conn *pgxpool.
 func RemoveProductFromFavorite(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 	defer r.Body.Close()
 
-	isValidMethod := utilities.IsMethodValid(r.Method, []string{"DELETE"})
+	isValidMethod := utilities.IsMethodValid(r.Method, []string{"DELETE", "POST"})
 	if !isValidMethod {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return

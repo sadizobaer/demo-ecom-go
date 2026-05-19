@@ -19,9 +19,16 @@ CREATE TABLE IF NOT EXISTS wishlists (
 );
 `
 
+const AddUniqueWishlistIndexQuery = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_user_product
+ON wishlists (user_id, product_id);
+`
+
 const AddToWishlistQuery = `
 INSERT INTO wishlists (user_id, product_id)
 VALUES ($1, $2)
+ON CONFLICT (user_id, product_id) DO UPDATE
+  SET user_id = wishlists.user_id
 RETURNING id;
 `
 
@@ -48,10 +55,11 @@ func RunWishlistTableCreationQuery(conn *pgxpool.Pool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := conn.Exec(ctx, WishlistTableCreationQuery)
-	if err != nil {
+	if _, err := conn.Exec(ctx, WishlistTableCreationQuery); err != nil {
 		return err
 	}
+	// Idempotent: add unique index if missing (handles existing tables without constraint)
+	_, _ = conn.Exec(ctx, AddUniqueWishlistIndexQuery)
 	return nil
 }
 

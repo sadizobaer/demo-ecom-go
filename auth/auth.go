@@ -74,11 +74,8 @@ func LoginUser(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 
 	userFromDB, err := GetUserByEmail(conn, loginData.Email)
 
-	print(userFromDB.UserId)
-	print(userFromDB.Email)
-
 	if err != nil {
-		http.Error(w, "Invalid email", http.StatusUnauthorized)
+		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
@@ -116,6 +113,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request, conn *pgxpool.Pool) {
 		"is_admin": userFromDB.IsAdmin,
 		"username": userFromDB.Username,
 		"email":    userFromDB.Email,
+		"user_id":  userFromDB.UserId,
 	}
 	json.NewEncoder(w).Encode(response)
 }
